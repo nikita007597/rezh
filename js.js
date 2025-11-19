@@ -17,381 +17,274 @@ setInterval(updateHeaderClock, 1000);
 updateHeaderClock();
 
 
-// Функции для модальных окон
-        function showModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
+
+ // Рабочий календарь с возможностью навигации по месяцам
+        class EventCalendar {
+            constructor() {
+                this.currentDate = new Date();
+                this.events = [
+                    
+                    { date: new Date(2025, 10, 22), title: 'Чемпионат Режа по шахматам', location: 'МБУК ДЮСОК Антей' },
+                    
+                    { date: new Date(2025, 10, 29), title: 'Чемпионат Режа по шахматам', location: 'МБУК ДЮСОК Антей' },
+                    { date: new Date(2025, 10, 20), title: 'Первенство области по волейболу', location: 'МБУК ДО СШ Россия' },
+                    { date: new Date(2025, 10, 21), title: 'Первенство области по волейболу', location: 'МБУК ДО СШ Россия' },
+                    { date: new Date(2025, 10, 22), title: 'Первенство области по волейболу', location: 'МБУК ДО СШ Россия' },
+                    { date: new Date(2025, 10, 23), title: 'Первенство области по волейболу', location: 'МБУК ДО СШ Россия' },
+                    { date: new Date(2025, 10, 30), title: 'Личное первенство по быстрым шахматам', location: 'МБУК ДК Металлург' }
+                ];
+                this.init();
+            }
+
+            init() {
+                this.renderCalendar();
+                this.setupEventListeners();
+            }
+
+            renderCalendar() {
+                const calendarElement = document.getElementById('calendar');
+                const monthYearElement = document.getElementById('currentMonthYear');
+                
+                // Очищаем календарь (кроме дней недели)
+                while (calendarElement.children.length > 7) {
+                    calendarElement.removeChild(calendarElement.lastChild);
+                }
+
+                // Устанавливаем заголовок
+                const monthNames = [
+                    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+                ];
+                monthYearElement.textContent = `${monthNames[this.currentDate.getMonth()]} ${this.currentDate.getFullYear()}`;
+
+                // Получаем первый день месяца и количество дней
+                const firstDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+                const lastDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Корректировка для Пн-Вс
+
+                // Добавляем пустые ячейки для дней предыдущего месяца
+                const prevMonthLastDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 0).getDate();
+                for (let i = 0; i < startingDay; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day other-month';
+                    dayElement.textContent = prevMonthLastDay - startingDay + i + 1;
+                    calendarElement.appendChild(dayElement);
+                }
+
+                // Добавляем дни текущего месяца
+                const today = new Date();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    dayElement.textContent = i;
+
+                    // Проверяем, является ли день сегодняшним
+                    if (this.currentDate.getMonth() === today.getMonth() && 
+                        this.currentDate.getFullYear() === today.getFullYear() && 
+                        i === today.getDate()) {
+                        dayElement.classList.add('today');
+                    }
+
+                    // Проверяем, есть ли события в этот день
+                    const hasEvent = this.events.some(event => 
+                        event.date.getDate() === i && 
+                        event.date.getMonth() === this.currentDate.getMonth() && 
+                        event.date.getFullYear() === this.currentDate.getFullYear()
+                    );
+
+                    if (hasEvent) {
+                        dayElement.classList.add('event-day');
+                    }
+
+                    // Добавляем обработчик клика
+                    dayElement.addEventListener('click', () => this.selectDay(i, dayElement));
+                    calendarElement.appendChild(dayElement);
+                }
+
+                // Добавляем пустые ячейки для дней следующего месяца
+                const totalCells = startingDay + daysInMonth;
+                const remainingCells = 42 - totalCells; // 6 строк по 7 дней
+                for (let i = 1; i <= remainingCells; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day other-month';
+                    dayElement.textContent = i;
+                    calendarElement.appendChild(dayElement);
+                }
+            }
+
+            selectDay(day, element) {
+                // Убираем выделение у всех дней
+                document.querySelectorAll('.calendar-day').forEach(dayEl => {
+                    dayEl.classList.remove('selected');
+                });
+
+                // Добавляем выделение выбранному дню
+                element.classList.add('selected');
+
+                // Показываем события для выбранного дня
+                this.showEventsForDay(day);
+            }
+
+            showEventsForDay(day) {
+                const eventsContainer = document.getElementById('calendarEvents');
+                const selectedDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), day);
+                
+                const dayEvents = this.events.filter(event => 
+                    event.date.getDate() === selectedDate.getDate() && 
+                    event.date.getMonth() === selectedDate.getMonth() && 
+                    event.date.getFullYear() === selectedDate.getFullYear()
+                );
+
+                eventsContainer.innerHTML = '';
+
+                if (dayEvents.length > 0) {
+                    dayEvents.forEach(event => {
+                        const eventElement = document.createElement('div');
+                        eventElement.className = 'calendar-event-item';
+                        eventElement.innerHTML = `
+                            <div>
+                                <strong>${event.title}</strong>
+                                <div style="font-size: 0.8rem; color: var(--gray); margin-top: 2px;">
+                                    <i class="fas fa-map-marker-alt"></i> ${event.location}
+                                </div>
+                            </div>
+                        `;
+                        eventsContainer.appendChild(eventElement);
+                    });
+                } else {
+                    const noEventsElement = document.createElement('div');
+                    noEventsElement.className = 'calendar-event-item';
+                    noEventsElement.textContent = 'На этот день событий нет';
+                    eventsContainer.appendChild(noEventsElement);
+                }
+            }
+
+            changeMonth(direction) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+                this.renderCalendar();
+                
+                // Сбрасываем выделение дня при смене месяца
+                document.querySelectorAll('.calendar-day').forEach(dayEl => {
+                    dayEl.classList.remove('selected');
+                });
+                
+                // Очищаем список событий
+                document.getElementById('calendarEvents').innerHTML = 
+                    '<div class="calendar-event-item">Выберите день для просмотра событий</div>';
+            }
+
+            setupEventListeners() {
+                document.getElementById('prevMonth').addEventListener('click', () => {
+                    this.changeMonth(-1);
+                });
+
+                document.getElementById('nextMonth').addEventListener('click', () => {
+                    this.changeMonth(1);
+                });
+            }
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация календаря
+            const calendar = new EventCalendar();
 
-        // Функция для показа уведомлений
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            const notificationText = document.getElementById('notification-text');
+            // Фильтрация контента
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const cards = document.querySelectorAll('.card');
             
-            notificationText.textContent = message;
-            notification.classList.add('show');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const filterValue = this.textContent;
+                    
+                    cards.forEach(card => {
+                        if (filterValue === 'Все') {
+                            card.style.display = 'block';
+                        } else {
+                            const category = card.querySelector('.card-category').textContent;
+                            if (category === filterValue) {
+                                card.style.display = 'block';
+                            } else {
+                                card.style.display = 'none';
+                            }
+                        }
+                    });
+                });
+            });
             
+            // Имитация загрузки карты
+            const mapPlaceholder = document.querySelector('.map-placeholder');
             setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
-
-        // Обновление погоды (имитация)
-        function updateWeather() {
-            const weatherWidget = document.getElementById('weather-widget');
-            const temperatures = ['+3°C', '+5°C', '+7°C', '+4°C', '+6°C'];
-            const conditions = [
-                {icon: 'fa-cloud-sun', text: 'Переменная облачность'},
-                {icon: 'fa-sun', text: 'Ясно'},
-                {icon: 'fa-cloud', text: 'Облачно'},
-                {icon: 'fa-cloud-rain', text: 'Небольшой дождь'}
-            ];
+                mapPlaceholder.innerHTML = '<i class="fas fa-map-marked-alt" style="font-size: 3rem; margin-bottom: 1rem;"></i><br>Интерактивная карта загружается...';
+            }, 1500);
             
-            const randomTemp = temperatures[Math.floor(Math.random() * temperatures.length)];
-            const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
-            
-            weatherWidget.innerHTML = `
-                <div style="font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem;">
-                    <i class="fas ${randomCondition.icon}"></i>
-                </div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary);">
-                    ${randomTemp}
-                </div>
-                <div style="color: var(--gray); margin-top: 0.5rem;">
-                    ${randomCondition.text}, ощущается как ${parseInt(randomTemp) - 2}°C
-                </div>
-                <button class="btn btn-outline" style="margin-top: 1rem; width: 100%;" onclick="updateWeather()">
-                    <i class="fas fa-sync-alt"></i>Обновить
-                </button>
-            `;
-            
-            showNotification('Погода обновлена');
-        }
-
-        // Обработка формы обратной связи
-        document.getElementById('feedback-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = {
-                name: document.getElementById('name').value,
-                email: document.getElementById('email').value,
-                category: document.getElementById('category').value,
-                message: document.getElementById('message').value
+            // Добавление анимации при прокрутке
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
             };
             
-            // Имитация отправки данных
-            console.log('Отправлены данные:', formData);
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = 1;
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
             
-            // Показываем уведомление
-            showNotification('Ваше сообщение отправлено! Мы ответим в течение 3 рабочих дней.');
-            
-            // Очищаем форму
-            this.reset();
-            
-            // Закрываем модальное окно, если оно открыто
-            closeModal('problems-modal');
-        });
-
-        // Закрытие модальных окон при клике вне их
-        window.addEventListener('click', function(e) {
-            const modals = document.querySelectorAll('.modal');
-            modals.forEach(modal => {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-
-        // Анимация появления элементов при прокрутке
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver(function(entries) {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, observerOptions);
-
-        // Применяем анимацию к карточкам
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.card, .service-card');
             cards.forEach(card => {
                 card.style.opacity = 0;
-                card.style.transform = 'translateY(30px)';
-                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.5s, transform 0.5s';
                 observer.observe(card);
             });
         });
 
-
-
-        // Конфигурация валют
-        const CURRENCIES = [
-            { code: 'USD', name: 'Доллар США', flag: '🇺🇸', apiCode: 'USD' },
-            { code: 'EUR', name: 'Евро', flag: '🇪🇺', apiCode: 'EUR' },
-            { code: 'CNY', name: 'Юань', flag: '🇨🇳', apiCode: 'CNY' },
-            { code: 'GBP', name: 'Фунт стерлингов', flag: '🇬🇧', apiCode: 'GBP' },
-            { code: 'JPY', name: 'Иена', flag: '🇯🇵', apiCode: 'JPY' },
-            { code: 'KZT', name: 'Тенге', flag: '🇰🇿', apiCode: 'KZT' }
-        ];
-
-        // Кэш курсов валют
-        let exchangeRates = {};
-        let updateInterval;
-
-        // Инициализация
+        // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            loadExchangeRates();
-            setupAutoUpdate();
-            setupEventListeners();
-        });
-
-        // Загрузка курсов валют
-        async function loadExchangeRates() {
-            const refreshBtn = document.getElementById('refresh-rates');
-            const currencyList = document.getElementById('currency-list');
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const cards = document.querySelectorAll('.card');
+            const noResultsMessage = document.getElementById('no-results');
             
-            try {
-                // Показываем состояние загрузки
-                refreshBtn.classList.add('loading');
-                refreshBtn.innerHTML = '<i class="fas fa-spinner loading-spinner"></i> Загрузка...';
-
-                // Получаем курсы валют (используем бесплатный API)
-                const rates = await fetchExchangeRates();
-                
-                // Обновляем интерфейс
-                updateCurrencyDisplay(rates);
-                updateLastUpdateTime();
-                
-                showNotification('Курсы валют успешно обновлены');
-                
-            } catch (error) {
-                console.error('Ошибка загрузки курсов валют:', error);
-                showNotification('Ошибка загрузки курсов. Используются кэшированные данные.', 'error');
-                
-                // Если есть кэшированные данные, используем их
-                if (Object.keys(exchangeRates).length > 0) {
-                    updateCurrencyDisplay(exchangeRates);
-                }
-            } finally {
-                refreshBtn.classList.remove('loading');
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Обновить курсы';
-            }
-        }
-
-        // Получение курсов валют с API
-        async function fetchExchangeRates() {
-            // Пробуем несколько бесплатных API
-            const APIs = [
-                'https://api.exchangerate-api.com/v4/latest/RUB',
-                'https://api.frankfurter.app/latest?from=RUB'
-            ];
-
-            for (const apiUrl of APIs) {
-                try {
-                    const response = await fetch(apiUrl);
-                    if (response.ok) {
-                        const data = await response.json();
-                        return processExchangeRates(data, apiUrl);
-                    }
-                } catch (error) {
-                    console.warn(`API ${apiUrl} недоступен:`, error);
-                    continue;
-                }
-            }
-
-            // Если все API недоступны, используем fallback данные
-            return getFallbackRates();
-        }
-
-        // Обработка данных от API
-        function processExchangeRates(data, apiUrl) {
-            const rates = {};
-            
-            CURRENCIES.forEach(currency => {
-                let rate;
-                
-                if (apiUrl.includes('exchangerate-api')) {
-                    // API: exchangerate-api.com
-                    rate = data.rates && data.rates[currency.apiCode] ? 
-                           (1 / data.rates[currency.apiCode]).toFixed(2) : null;
-                } else if (apiUrl.includes('frankfurter')) {
-                    // API: frankfurter.app
-                    rate = data.rates && data.rates[currency.apiCode] ? 
-                           (1 / data.rates[currency.apiCode]).toFixed(2) : null;
-                }
-
-                if (rate) {
-                    // Генерируем случайное изменение для демонстрации
-                    const previousRate = exchangeRates[currency.code]?.rate || parseFloat(rate);
-                    const change = ((parseFloat(rate) - previousRate) / previousRate * 100).toFixed(2);
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Убираем активный класс со всех кнопок
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
                     
-                    rates[currency.code] = {
-                        rate: parseFloat(rate),
-                        change: parseFloat(change),
-                        previousRate: previousRate
-                    };
-                }
-            });
-
-            // Сохраняем в кэш
-            exchangeRates = rates;
-            return rates;
-        }
-
-        // Fallback данные (если API недоступны)
-        function getFallbackRates() {
-            const fallbackRates = {
-                'USD': { rate: 92.45, change: 0.25, previousRate: 92.20 },
-                'EUR': { rate: 101.20, change: -0.15, previousRate: 101.35 },
-                'CNY': { rate: 12.85, change: 0.10, previousRate: 12.75 },
-                'GBP': { rate: 117.80, change: -0.30, previousRate: 118.10 },
-                'JPY': { rate: 0.62, change: 0.05, previousRate: 0.617 },
-                'KZT': { rate: 0.20, change: 0.02, previousRate: 0.198 }
-            };
-
-            exchangeRates = fallbackRates;
-            return fallbackRates;
-        }
-
-        // Обновление отображения курсов
-        function updateCurrencyDisplay(rates) {
-            const currencyList = document.getElementById('currency-list');
-            currencyList.innerHTML = '';
-
-            CURRENCIES.forEach(currency => {
-                const currencyData = rates[currency.code];
-                if (!currencyData) return;
-
-                const changeClass = currencyData.change > 0 ? 'positive' : 
-                                  currencyData.change < 0 ? 'negative' : 'neutral';
-                
-                const changeIcon = currencyData.change > 0 ? 'fa-arrow-up' :
-                                 currencyData.change < 0 ? 'fa-arrow-down' : 'fa-minus';
-
-                const currencyItem = document.createElement('div');
-                currencyItem.className = 'currency-item';
-                currencyItem.style.borderLeftColor = currencyData.change > 0 ? 'var(--success)' : 
-                                                   currencyData.change < 0 ? 'var(--danger)' : 'var(--gray)';
-
-                currencyItem.innerHTML = `
-                    <div class="currency-info">
-                        <div style="font-size: 1.5rem;">${currency.flag}</div>
-                        <div>
-                            <div class="currency-name">${currency.name}</div>
-                            <div class="currency-code">${currency.code}</div>
-                        </div>
-                    </div>
-                    <div class="currency-rate">
-                        <div class="rate-value">${currencyData.rate.toFixed(2)} ₽</div>
-                        <div class="rate-change ${changeClass}">
-                            <i class="fas ${changeIcon}"></i>
-                            <span>${Math.abs(currencyData.change).toFixed(2)}%</span>
-                        </div>
-                    </div>
-                `;
-
-                currencyList.appendChild(currencyItem);
-            });
-        }
-
-        // Обновление времени последнего обновления
-        function updateLastUpdateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('ru-RU', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            
-            document.getElementById('last-update-text').textContent = `Обновлено: ${timeString}`;
-        }
-
-        // Настройка автообновления
-        function setupAutoUpdate() {
-            const autoUpdateCheckbox = document.getElementById('auto-update');
-            
-            autoUpdateCheckbox.addEventListener('change', function() {
-                if (this.checked) {
-                    startAutoUpdate();
-                } else {
-                    stopAutoUpdate();
-                }
-            });
-
-            // Запускаем автообновление по умолчанию
-            startAutoUpdate();
-        }
-
-        function startAutoUpdate() {
-            stopAutoUpdate(); // Останавливаем предыдущий интервал
-            updateInterval = setInterval(loadExchangeRates, 60000); // 60 секунд
-        }
-
-        function stopAutoUpdate() {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-                updateInterval = null;
-            }
-        }
-
-        // Настройка обработчиков событий
-        function setupEventListeners() {
-            document.getElementById('refresh-rates').addEventListener('click', loadExchangeRates);
-            
-            // Обновляем при фокусе на странице
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden && document.getElementById('auto-update').checked) {
-                    loadExchangeRates();
-                }
-            });
-        }
-
-        // Показать уведомление
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const notificationText = document.getElementById('notification-text');
-            
-            notificationText.textContent = message;
-            notification.style.background = type === 'error' ? 'var(--danger)' : 'var(--success)';
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
-
-        // Имитация WebSocket для реального обновления (для демонстрации)
-        function simulateRealTimeUpdates() {
-            setInterval(() => {
-                if (Object.keys(exchangeRates).length > 0) {
-                    // Случайное обновление курсов для демонстрации
-                    Object.keys(exchangeRates).forEach(currencyCode => {
-                        const change = (Math.random() - 0.5) * 0.2; // ±0.1%
-                        exchangeRates[currencyCode].rate *= (1 + change / 100);
-                        exchangeRates[currencyCode].change = change;
+                    // Добавляем активный класс к нажатой кнопке
+                    this.classList.add('active');
+                    
+                    // Получаем значение фильтра
+                    const filterValue = this.getAttribute('data-filter');
+                    
+                    let visibleCardsCount = 0;
+                    
+                    // Показываем/скрываем карточки в зависимости от фильтра
+                    cards.forEach(card => {
+                        if (filterValue === 'all') {
+                            card.style.display = 'block';
+                            visibleCardsCount++;
+                        } else {
+                            if (card.getAttribute('data-category') === filterValue) {
+                                card.style.display = 'block';
+                                visibleCardsCount++;
+                            } else {
+                                card.style.display = 'none';
+                            }
+                        }
                     });
                     
-                    if (document.getElementById('auto-update').checked) {
-                        updateCurrencyDisplay(exchangeRates);
-                        updateLastUpdateTime();
+                    // Показываем или скрываем сообщение "Ничего не найдено"
+                    if (visibleCardsCount === 0) {
+                        noResultsMessage.style.display = 'block';
+                    } else {
+                        noResultsMessage.style.display = 'none';
                     }
-                }
-            }, 10000); // Каждые 10 секунд
-        }
-
-        // Запускаем симуляцию реального обновления
-        simulateRealTimeUpdates();
-
-
-
-
-        
+                });
+            });
+        });
